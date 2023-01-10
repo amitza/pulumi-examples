@@ -145,3 +145,48 @@ managed_environments_storage = app.ManagedEnvironmentsStorage("managedEnvironmen
                                                               ),
                                                               resource_group_name=rg_devops.name,
                                                               storage_name=storage_name)
+
+
+container_app = app.ContainerApp("azure-agent-app",
+                                 resource_group_name=rg_devops.name,
+                                 managed_environment_id=managed_env.id,
+                                 configuration=app.ConfigurationArgs(
+                                     registries=[
+                                         app.RegistryCredentialsArgs(
+                                             server=registry_name,
+                                             username=registry_admin_username,
+                                             password_secret_ref="pwd")
+                                     ],
+                                     secrets=[
+                                         app.SecretArgs(
+                                             name="pwd",
+                                             value=registry_admin_password),
+                                         app.SecretArgs(
+                                             name="az-pat",
+                                             value="testpat")
+                                     ],
+                                 ),
+                                 template=app.TemplateArgs(
+                                     containers=[
+                                         app.ContainerArgs(
+                                             name="azure-agent",
+                                             image=image_name,
+                                             env=[EnvironmentVarArgs(name="AZP_POOL", value="Containers"),
+                                                  EnvironmentVarArgs(name="AZP_TOKEN",
+                                                                     secret_ref="az-pat"),
+                                                  EnvironmentVarArgs(name="AZP_URL",
+                                                                     value="https://dev.azure.com/example-organiztion")
+                                                  ],
+                                             resources=ContainerResourcesArgs(cpu=2,
+                                                                              memory='4.0Gi'),
+                                             volume_mounts=[
+                                                 VolumeMountArgs(volume_name='workspace', mount_path='/azp/_work')
+                                             ]
+                                         )
+                                     ],
+                                     volumes=[
+                                         VolumeArgs(name='workspace', storage_name=storage_name,
+                                                    storage_type=StorageType.AZURE_FILE)
+                                     ],
+                                     scale=ScaleArgs(max_replicas=1, min_replicas=1)),
+                                 tags=tags)
